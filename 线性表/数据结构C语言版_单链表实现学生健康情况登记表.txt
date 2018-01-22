@@ -1,0 +1,641 @@
+#include <stdio.h>
+#include <string.h>
+#include <malloc.h>
+#include <stdlib.h>
+#include <conio.h>
+/*
+	数据结构C语言版 单链表实现学生健康情况登记表
+	利用单链表结构处理教科书P18 图2.1(学生健康登记表).
+	编译环境：VC++6.0
+	日期：2011年2月9日 
+*/
+
+#define Status	int
+#define OK		1
+#define TRUE	1
+#define	FALSE	0
+#define ERROR	0
+
+#define NAMELEN 8	// 姓名最大长度
+#define CLASSLEN 4	// 班级名最大长度
+
+// 记录的结构
+struct stud
+{
+	char name[NAMELEN+1];	//姓名
+	long num;				//学号
+	char sex;				//性别
+	int  age;				//年龄
+	char Class[CLASSLEN+1];	//班级
+	int  health;			//健康状况
+};
+
+// 链表结点元素类型为结构体
+typedef struct stud ElemType;
+
+// 线性表的单链表存储结构
+typedef struct LNode
+{
+	ElemType data;		//数据域
+	struct LNode *next;	//指针域
+}LNode, *LinkList;
+
+// 健康状况(3类)
+char sta[3][9] = {"健康  " , "一般  ", "神经衰弱"};
+
+FILE *fp;
+
+// 构造一个空的线性表L
+Status InitList(LinkList *L) 
+{
+	 // 产生头结点,并使L指向此头结点
+	*L = (LinkList)malloc(sizeof(struct LNode));
+	if(!*L)
+		exit(0);
+	(*L)->next = NULL; // 指针域为空
+	return OK;
+}
+
+// 依次对L的每个数据元素调用函数vi()。
+Status ListTraverse(LinkList L, void(*vi)(ElemType))
+{
+	LinkList p = L->next;
+	while(p)
+	{
+		vi(p->data);
+		p = p->next;
+	}
+	printf("\n");
+	return OK;
+}
+
+// 按学号非降序插入
+void InsertAscend(LinkList L, ElemType e)
+{
+	LinkList q = L,		// q为中介
+			 p = L->next;
+	// 将e的学号与链表中的每一个元素的学号作比较，找到第一个比e学号
+	// 大或等于的元素赋给q.
+	while(p && e.num > p->data.num)
+	{
+		q = p;
+		p = p->next;
+	}
+	// 插在q后
+	q->next = (LinkList)malloc(sizeof(struct LNode));
+	q->next->data = e;
+	q->next->next = p;
+	printf("记录插入成功!\n");
+}
+
+// 显示记录e的内容
+void Print(struct stud e)
+{
+	printf("%10s%10ld", e.name, e.num);
+	if(e.sex == 'm')
+		printf("%6s", "男");
+	else
+		printf("%6s", "女");
+	printf("%6d%10s", e.age, e.Class);
+	printf("%10s\n", sta[e.health]);
+}
+
+ // 由键盘输入结点信息
+void ReadIn(struct stud *e)
+{
+	printf("请输入姓名(<=%d个字符): ", NAMELEN);
+	scanf("%s", e->name);
+	printf("请输入学号: ");
+	scanf("%ld", &e->num);
+	printf("请输入性别(m:男 f:女): ");
+	scanf("%*c%c", &e->sex);	// %*c用来吸收回车符
+	printf("请输入年龄: ");
+	scanf("%d", &e->age);
+	getch();	// 用来吸收多余的回车符
+	printf("请输入班级(<=%d个字符): ", CLASSLEN);
+	scanf("%s", e->Class);
+	printf("请输入健康状况(0:%s 1:%s 2:%s):",
+		sta[0], sta[1], sta[2]);
+	scanf("%d", &e->health);
+}
+
+// 将结点信息写入fp指定的文件
+void WriteToFile(struct stud e)
+{
+	if(fwrite(&e, sizeof(struct stud), 1, fp))
+		printf("记录写入成功！\n");
+}
+
+// 由fp指定的文件读取结点信息到e
+Status ReadFromFile(struct stud *e)
+{
+	int i;
+	i = fread(e, sizeof(struct stud), 1, fp);
+	if(i == 1)	// 读取文件成功
+		return OK;
+	else
+		return ERROR;
+}
+
+// 查找表中学号为num的结点,如找到,q指向此结点,p指向q的前驱,
+// 并返回TRUE;如无此元素,则返回FALSE.
+Status FindFromNum(LinkList L,long num,LinkList *p,LinkList *q)
+{
+	*p = L;
+	while(*p)
+	{
+		*q = (*p)->next;
+		if(*q && (*q)->data.num > num) // 因为是按学号非降序排列
+			break;
+		if(*q && (*q)->data.num == num) // 找到该学号
+			return TRUE;
+		*p = *q;
+	}
+	return FALSE;
+}
+
+// 查找表中姓名为name的结点,如找到,q指向此结点,p指向q的前驱,
+// 并返回TRUE;如无此元素,则返回FALSE.
+Status FindFromName(LinkList L,char name[],LinkList *p,LinkList *q)
+{
+	*p = L;
+	while( *p )
+	{
+		*q = (*p)->next;
+		if(*q && !strcmp((*q)->data.name, name)) // 找到该姓名
+			return TRUE;
+		*p = *q;
+	}
+	return FALSE;
+}
+
+/*
+	删除表中学号为num的元素，并返回TRUE；如无此元素，
+	则返回FALSE.
+*/
+Status DeleteElemNum(LinkList L,long num)
+{
+	LinkList p,q;
+	if(FindFromNum(L, num, &p, &q)) // 找到此结点,且q指向其,p指向其前驱
+	{
+		p->next = q->next;
+		free(q);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+// 删除表中姓名为name的元素，并返回TRUE；如无此元素，则返回FALSE
+Status DeleteElemName(LinkList L,char name[])
+{
+	LinkList p, q;
+	if(FindFromName(L,name,&p,&q)) // 找到此结点,且q指向其,p指向其前驱
+	{
+		p->next = q->next;
+		free(q);
+		return TRUE;
+	}
+	return FALSE;
+}
+
+// 修改结点内容
+void Modify(ElemType *e)
+{
+	char s[80];
+	printf("%10s%10s%6s%6s%10s%10s\n", "姓名", "学号",
+				"性别", "年龄", "班级", "健康状况");
+	Print(*e);
+	printf("请输入待修改项的内容，不修改的项按回车键保持原值:\n");
+	printf("请输入姓名(<=%d个字符): ",NAMELEN);
+	gets(s);
+	if(strlen(s))
+		strcpy(e->name,s);
+	printf("请输入学号: ");
+	gets(s);
+	if(strlen(s))
+		e->num=atol(s);
+	printf("请输入性别(m:男 f:女): ");
+	gets(s);
+	if(strlen(s))
+		e->sex=s[0];
+	printf("请输入年龄: ");
+	gets(s);
+	if(strlen(s))
+		e->age=atoi(s);
+	printf("请输入班级(<=%d个字符): ",CLASSLEN);
+	gets(s);
+	if(strlen(s))
+		strcpy(e->Class,s);
+	printf("请输入健康状况(0:%s 1:%s 2:%s):",sta[0],sta[1],sta[2]);
+	gets(s);
+	if(strlen(s))
+		e->health=atoi(s);
+	printf("修改记录成功！\n");
+}
+
+
+// 进行测试
+
+// student记录的个数
+#define	N	4
+
+int main()
+{
+	// 表的初始记录
+	struct stud student[N] = {
+		{"王小林", 790631, 'm', 18, "计91", 0},
+		{"陈红",790632,'f',20,"计91",1},
+		{"刘建平",790633,'m',21,"计91",0},
+		{"张立立",790634,'m',17,"计91",2}};
+	int i, j, flag = 1;
+	long num;
+	char filename[13], name[NAMELEN+1];
+	ElemType e;
+	LinkList T,p,q;
+
+	 // 初始化链表
+	InitList(&T);
+	while(flag)
+	{
+		printf("\n1:将结构体数组student中的记录按学号非降序插入链表\n");
+		printf("2:将文件中的记录按学号非降序插入链表\n");
+		printf("3:键盘输入新记录，并将其按学号非降序插入链表\n");
+		printf("4:删除链表中第一个有给定学号的记录\n");
+		printf("5:删除链表中第一个有给定姓名的记录\n");
+		printf("6:修改链表中第一个有给定学号的记录\n");
+		printf("7:修改链表中第一个有给定姓名的记录\n");
+		printf("8:查找链表中第一个有给定学号的记录\n");
+		printf("9:查找链表中第一个有给定姓名的记录\n");
+		printf("10:显示所有记录\n");
+		printf("11:将链表中的所有记录存入文件\n");
+		printf("12:结束\n\n");
+		
+		printf("请选择操作命令: ");
+		scanf("%d",&i);
+		printf("\n");
+
+		switch(i)
+		{
+		case 1: 
+			// 将结构体数组student中的记录按学号非降序插入链表
+			for(j = 0; j < N; j++)
+				InsertAscend(T, student[j]);
+			break;
+		case 2: 
+			printf("请输入文件名: ");
+			scanf("%s", filename);
+			if((fp = fopen(filename,"rb"))==NULL)
+				printf("打开文件失败!\n");
+			else
+			{
+				// 将文件中的记录按学号非降序插入链表
+				while(ReadFromFile(&e))
+					InsertAscend(T,e);
+				fclose(fp);
+				printf("文件中的记录导入成功！\n");
+			}
+			break;
+		case 3: 
+			// 键盘输入新记录，并将其按学号非降序插入链表
+			ReadIn(&e);
+			InsertAscend(T,e);
+			break;
+		case 4: 
+			// 根据学号删除链表中的元素
+			printf("请输入待删除记录的学号: ");
+			scanf("%ld",&num);
+			if(!DeleteElemNum(T,num))
+				printf("没有学号为%ld的记录\n",num);
+			else
+				printf("学号为%ld的记录已删除\n",num);
+			break;
+		case 5: 
+			// 根据姓名删除链表中的元素
+			printf("请输入待删除记录的姓名: ");
+			scanf("%s", name);
+			if(!DeleteElemName(T, name))
+				printf("没有姓名为%s的记录\n", name);
+			else
+				printf("姓名为%s的记录已删除\n", name);
+			break;
+		case 6:
+			// 修改链表中指定学号的记录
+			printf("请输入待修改记录的学号: ");
+			scanf("%ld%*c", &num);		// %*c吃掉回车符
+			if(!FindFromNum(T, num, &p, &q))
+				printf("没有学号为%ld的记录\n", num);
+			else
+			{
+				Modify(&q->data);
+				if(q->data.num != num) /* 学号被修改 */
+				{
+					p->next = q->next;
+					InsertAscend(T,q->data);
+					free(q);
+				}
+			}
+			break;
+		case 7:
+			// 修改链表中指定姓名的记录
+			printf("请输入待修改记录的姓名: ");
+			scanf("%s%*c",name);
+			if(!FindFromName(T,name,&p,&q))
+				printf("没有姓名为%s的记录\n",name);
+			else
+			{
+				num = q->data.num;
+				Modify(&q->data);
+				if(q->data.num != num)
+				{
+					p->next=q->next;
+					InsertAscend(T,q->data);
+					free(q);
+				}
+			}
+			break;
+		case 8:
+			// 查找链表中指定学号的记录
+			printf("请输入待查找记录的学号: ");
+			scanf("%ld",&num);
+			if(!FindFromNum(T,num,&p,&q))
+				printf("没有学号为%ld的记录\n",num);
+			else {
+				printf("%10s%10s%6s%6s%10s%10s\n", "姓名", "学号",
+				"性别", "年龄", "班级", "健康状况");
+				Print(q->data);
+			}
+			break;
+		case 9:
+			// 查找链表中指姓名的记录
+			printf("请输入待查找记录的姓名: ");
+			scanf("%s", name);
+			if(!FindFromName(T,name,&p,&q))
+				printf("没有姓名为%s的记录\n",name);
+			else
+			{
+				printf("%10s%10s%6s%6s%10s%10s\n", "姓名", "学号",
+				"性别", "年龄", "班级", "健康状况");
+				Print(q->data);
+			}
+			break;
+		case 10:
+			// 显示所有记录
+			printf("%10s%10s%6s%6s%10s%10s\n", "姓名", "学号",
+				"性别", "年龄", "班级", "健康状况");
+			ListTraverse(T,Print);
+			break;
+		case 11:
+			// 将链表中的所有记录存入文件
+			printf("请输入文件名: ");
+			scanf("%s",filename);
+			if((fp=fopen(filename,"wb"))==NULL)
+				printf("打开文件失败!\n");
+			else
+				ListTraverse(T,WriteToFile);
+			fclose(fp);
+			break;
+		case 12:
+			// 结束
+			flag = 0;
+		}
+	}
+}
+
+/* 测试效果：
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 1
+
+记录插入成功!
+记录插入成功!
+记录插入成功!
+记录插入成功!
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 10
+
+      姓名      学号  性别  年龄      班级  健康状况
+    王小林    790631    男    18      计91    健康
+      陈红    790632    女    20      计91    一般
+    刘建平    790633    男    21      计91    健康
+    张立立    790634    男    17      计91  神经衰弱
+
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 3
+
+请输入姓名(<=8个字符): 1
+请输入学号: 1
+请输入性别(m:男 f:女): m
+请输入年龄: 1
+请输入班级(<=4个字符): 1
+请输入健康状况(0:健康   1:一般   2:神经衰弱):1
+记录插入成功!
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 10
+
+      姓名      学号  性别  年龄      班级  健康状况
+         1         1    男     1         1    一般
+    王小林    790631    男    18      计91    健康
+      陈红    790632    女    20      计91    一般
+    刘建平    790633    男    21      计91    健康
+    张立立    790634    男    17      计91  神经衰弱
+
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 4
+
+请输入待删除记录的学号: 790631
+学号为790631的记录已删除
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 10
+
+      姓名      学号  性别  年龄      班级  健康状况
+         1         1    男     1         1    一般
+      陈红    790632    女    20      计91    一般
+    刘建平    790633    男    21      计91    健康
+    张立立    790634    男    17      计91  神经衰弱
+
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 6
+
+请输入待修改记录的学号: 1
+      姓名      学号  性别  年龄      班级  健康状况
+         1         1    男     1         1    一般
+请输入待修改项的内容，不修改的项按回车键保持原值:
+请输入姓名(<=8个字符): 2
+请输入学号:
+请输入性别(m:男 f:女):
+请输入年龄:
+请输入班级(<=4个字符):
+请输入健康状况(0:健康   1:一般   2:神经衰弱):
+修改记录成功！
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 10
+
+      姓名      学号  性别  年龄      班级  健康状况
+         2         1    男     1         1    一般
+      陈红    790632    女    20      计91    一般
+    刘建平    790633    男    21      计91    健康
+    张立立    790634    男    17      计91  神经衰弱
+
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 8
+
+请输入待查找记录的学号: 1
+      姓名      学号  性别  年龄      班级  健康状况
+         2         1    男     1         1    一般
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 11
+
+请输入文件名: 1.txt
+记录写入成功！
+记录写入成功！
+记录写入成功！
+记录写入成功！
+
+
+1:将结构体数组student中的记录按学号非降序插入链表
+2:将文件中的记录按学号非降序插入链表
+3:键盘输入新记录，并将其按学号非降序插入链表
+4:删除链表中第一个有给定学号的记录
+5:删除链表中第一个有给定姓名的记录
+6:修改链表中第一个有给定学号的记录
+7:修改链表中第一个有给定姓名的记录
+8:查找链表中第一个有给定学号的记录
+9:查找链表中第一个有给定姓名的记录
+10:显示所有记录
+11:将链表中的所有记录存入文件
+12:结束
+
+请选择操作命令: 12
+
+Press any key to continue
+
+*/

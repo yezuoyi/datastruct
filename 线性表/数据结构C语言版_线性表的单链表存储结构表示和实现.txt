@@ -1,0 +1,849 @@
+#include <stdio.h>
+#include <malloc.h>
+#include <stdlib.h>
+/*
+	数据结构C语言版 线性表的单链表存储结构表示和实现
+	P28-31 
+	编译环境：Dev-C++ 4.9.9.2
+	日期：2011年2月10日 
+*/
+
+typedef int ElemType;
+
+// 线性表的单链表存储结构 
+typedef struct LNode
+{
+	ElemType data;		//数据域
+	struct LNode *next;	//指针域
+}LNode, *LinkList;
+
+// typedef struct LNode *LinkList; // 另一种定义LinkList的方法 
+
+
+// 构造一个空的线性表L 
+int InitList(LinkList *L)
+{
+	/*
+		产生头结点L,并使L指向此头结点，头节点的数据域为空，不放数据的。
+		void * malloc(size_t)
+		这里对返回值进行强制类型转换了，返回值是指向空类型的指针类型。
+	*/
+	(*L) = (LinkList)malloc( sizeof(struct LNode) );
+	if( !(*L) )
+		exit(0);		// 存储分配失败
+	(*L)->next = NULL;	// 指针域为空
+	
+	return 1;
+}
+
+// 销毁线性表L，将包括头结点在内的所有元素释放其存储空间。
+int DestroyList(LinkList *L)
+{ 	
+	LinkList q;
+
+	// 由于单链表的每一个元素是单独分配的，所以要一个一个的进行释放
+	while( *L )
+	{
+		q = (*L)->next;
+		free( *L );		//释放
+		*L = q;
+	}
+	
+	return 1;
+}
+
+/*
+	将L重置为空表，即将链表中除头结点外的所有元素释放其存
+	储空间，但是将头结点指针域置空，这和销毁有区别哦。不改变L，所以
+	不需要用指针。
+*/
+int ClearList( LinkList L )
+{ 	
+	LinkList p, q;
+
+	p = L->next;	// p指向第一个结点 
+	while( p )		// 没到表尾则继续循环 
+	{
+		q = p->next;
+		free( p );	//释放空间
+		p = q;
+	}
+	L->next = NULL; // 头结点指针域为空，链表成了一个空表 
+	
+	return 1;
+}
+
+// 若L为空表（根据头结点L->next来判断，为空则是空表），则返回1，
+// 否则返回0。
+int ListEmpty(LinkList L)
+{ 	
+	if( L->next )	// 非空 
+		return 0;
+	else
+		return 1;
+}
+
+// 返回L中数据元素个数。
+int ListLength(LinkList L)
+{ 	
+	int i = 0;
+	LinkList p = L->next; // p指向第一个结点 
+	
+	while(p) // 没到表尾，则继续循环 
+	{
+		i++;
+		p=p->next;
+	}
+	return i;
+}
+
+// 算法2.8 P29
+// L为带头结点的单链表的头指针。当第i个元素存在时,其值赋给e并
+// 返回1,否则返回0。
+int GetElem(LinkList L,int i,ElemType *e)
+{
+	int j = 1;			// j为计数器 
+	LinkList p=L->next;	// p指向第一个结点 
+	while(p&&j<i)		// 顺指针向后查找,直到p指向第i个元素或p为空 
+	{
+		p=p->next;
+		j++;
+	}  
+
+	if(!p||j>i) // 第i个元素不存在 
+		return 0;
+	*e = p->data; // 取第i个元素 
+	return 1;
+}
+
+// 返回L中第1个与e满足关系compare()的数据元素的位序。
+// 若这样的数据元素不存在,则返回值为0
+int LocateElem(LinkList L,ElemType e,int(*compare)(ElemType,ElemType))
+{ 
+	int i=0;
+	LinkList p=L->next;
+
+	while(p)	//将链表的每一个元素进行对比
+	{
+		i++;
+		if(compare(p->data,e)) // 找到这样的数据元素 
+			return i;
+		p=p->next;
+	}
+	return 0;
+}
+
+// 若cur_e是L的数据元素,且不是第一个,则用pre_e返回它的前驱,
+// 返回1;否则操作失败,pre_e无定义,返回-1
+int PriorElem(LinkList L,ElemType cur_e,ElemType *pre_e)
+{ 
+	LinkList q,
+			 p=L->next;	// p指向第一个结点 
+	while(p->next)		// p所指结点有后继 
+	{
+		q=p->next; // q为p的后继 
+		if(q->data==cur_e)
+		{
+			*pre_e=p->data;
+			return 1;
+		}
+		p=q; // p向后移 
+	}
+	return -1;
+}
+
+// 若cur_e是L的数据元素，且不是最后一个，则用next_e返回它的后继， 
+// 返回1;否则操作失败，next_e无定义，返回-1 
+int NextElem(LinkList L,ElemType cur_e,ElemType *next_e)
+{
+	LinkList p=L->next; // p指向第一个结点 
+	while(p->next) // p所指结点有后继 
+	{
+		if(p->data==cur_e)
+		{
+			*next_e=p->next->data;
+			return 1;
+		}
+		p=p->next;
+	}
+	return -1;
+}
+
+//	算法2.9 P30
+//	在带头结点的单链线性表L中第i个位置之前插入元素e
+int ListInsert(LinkList *L,int i,ElemType e)
+{ 
+	int j=0;
+	LinkList p=*L,s;
+	while(p && j<i-1) // 寻找第i-1个结点 
+	{
+		p=p->next;
+		j++;
+	}
+	if(!p || j>i-1) // i小于1或者大于表长 
+		return 0;
+	s=(LinkList)malloc(sizeof(struct LNode)); // 生成新结点 
+	s->data=e; // 插入L中 
+	s->next=p->next;
+	p->next=s;
+	return 1;
+}
+
+// 算法2.10 P30
+// 在带头结点的单链线性表L中，删除第i个元素,并由e返回其值
+int ListDelete(LinkList *L, int i,ElemType *e)
+{
+	int j = 0;
+	LinkList p=*L,q;
+	while(p->next&&j<i-1) // 寻找第i个结点,并令p指向其前趋 
+	{
+		p=p->next;
+		j++;
+	}
+	if(!p->next||j>i-1) // 删除位置不合理 
+		return 0;
+	q=p->next; // 删除并释放结点 
+	p->next=q->next;
+	*e=q->data;
+	free(q);
+	return 1;
+}
+
+// 依次对L的每个数据元素调用函数vi()
+int ListTraverse(LinkList L,void(*vi)(ElemType))
+{
+	LinkList p=L->next;
+	
+	//对所有元素调用函数vi
+	while(p)
+	{
+		vi(p->data);
+		p=p->next;
+	}
+	printf("\n");
+
+	return 1;
+}
+
+// 在按非降序排列的线性表L中按非降序插入新的数据元素e 
+void InsertAscend(LinkList L,ElemType e)
+{ 
+	LinkList q=L,
+			 p=L->next;
+
+	while(p&&e>p->data)
+	{
+		q=p;
+		p=p->next;
+	}
+	q->next=(LinkList)malloc(sizeof(struct LNode)); // e插在q后 
+	q->next->data=e;
+	q->next->next=p;
+}
+
+// 按非升序排列的线性表L中按非升序插入新的数据元素e 
+void InsertDescend(LinkList L,ElemType e)
+{ 
+	LinkList q=L,p=L->next;
+	while(p&&e<p->data)
+	{
+		q=p;
+		p=p->next;
+	}
+	q->next=(LinkList)malloc(sizeof(struct LNode)); // e插在q后 
+	q->next->data=e;
+	q->next->next=p;
+}
+
+// L的头部插入新的数据元素e,作为链表的第一个元素 
+int HeadInsert(LinkList L,ElemType e)
+{
+	LinkList s;
+	s=(LinkList)malloc(sizeof(struct LNode)); // 生成新结点 
+	s->data=e; // 给结点赋值 
+	s->next=L->next; // 插在表头 
+	L->next=s;
+	return 1;
+}
+
+// 在L的尾部插入新的数据元素e,作为链表的最后一个元素 
+int EndInsert(LinkList L,ElemType e)
+{ 
+	LinkList p=L;
+	while(p->next) // 使p指向表尾元素 
+		p=p->next;
+	p->next=(LinkList)malloc(sizeof(struct LNode)); // 在表尾生成新结点 
+	p->next->data=e; // 给新结点赋值 
+	p->next->next=NULL; // 表尾 
+	return 1;
+}
+
+// 删除L的第一个数据元素，并由e返回其值 
+int DeleteFirst(LinkList L,ElemType *e)
+{
+	LinkList p=L->next;
+	if(p)
+	{
+		*e=p->data;
+		L->next=p->next;
+		free(p);
+		return 1;
+	}
+	else
+		return 0;
+}
+
+// 删除L的最后一个数据元素，并用e返回其值
+int DeleteTail(LinkList L,ElemType *e)
+{
+	LinkList p=L,q;
+	if(!p->next) // 链表为空 
+		return 0;
+	while(p->next)
+	{
+		q=p;
+		p=p->next;
+	}
+	q->next=NULL; // 新尾结点的next域设为NULL 
+	*e=p->data;
+	free(p);
+	return 1;
+}
+
+// 删除表中值为e的元素，并返回1；如无此元素，则返回0 
+int DeleteElem(LinkList L,ElemType e)
+{
+	LinkList p=L,q;
+	while(p)
+	{
+		q=p->next;
+		if(q&&q->data==e)
+		{
+			p->next=q->next;
+			free(q);
+			return 1;
+		}
+		p=q;
+	}
+	return 0;
+}
+
+// 用e取代表L中第i个元素的值 
+int ReplaceElem(LinkList L,int i,ElemType e)
+{
+	LinkList p=L;
+	int j=0;
+	//找到第i个元素的位置给p
+	while(p->next && j<i)
+	{
+		j++;
+		p=p->next;
+	}
+	if(j==i)
+	{
+		p->data=e;
+		return 1;
+	}
+	else // 表中不存在第i个元素 
+		return 0;
+}
+
+// 按非降序建立n个元素的线性表
+int CreatAscend(LinkList *L,int n)
+{ 
+	int j;
+	LinkList p,q,s;
+	if(n<=0)
+		return 0;
+	InitList(L);
+	printf("请输入%d个元素:（空格）\n",n);
+	s=(LinkList)malloc(sizeof(struct LNode)); // 第一个结点 
+	scanf("%d",&s->data);
+	s->next=NULL;
+	(*L)->next=s;
+	for(j=1;j<n;j++)
+	{
+		s=(LinkList)malloc(sizeof(struct LNode)); // 其余结点 
+		scanf("%d",&s->data);
+		q=*L;
+		p=(*L)->next;
+		while(p&&p->data<s->data) // p没到表尾，且所指元素值小于新值 
+		{
+			q=p;
+			p=p->next; // 指针后移 
+		}
+		s->next=q->next; // 元素插在q的后面 
+		q->next=s;
+	}
+	return 1;
+}
+
+// 按非升序建立n个元素的线性表
+int CreatDescend(LinkList *L,int n)
+{ 
+	int j;
+	LinkList p,q,s;
+	if(n<=0)
+		return 0;
+	InitList(L);
+	printf("请输入%d个元素:（空格）\n",n);
+	s=(LinkList)malloc(sizeof(struct LNode)); // 第一个结点 
+	scanf("%d",&s->data);
+	s->next=NULL;
+	(*L)->next=s;
+	for(j=1;j<n;j++)
+	{
+		s=(LinkList)malloc(sizeof(struct LNode)); // 其余结点 
+		scanf("%d",&s->data);
+		q=*L;
+		p=(*L)->next;
+		while(p&&p->data>s->data) // p没到表尾，且所指元素值大于新值 
+		{
+			q=p;
+			p=p->next; // 指针后移 
+		}
+		s->next=q->next; // 元素插在q的后面 
+		q->next=s;
+	}
+	return 1;
+}
+
+// 返回表头元素的值
+int GetFirstElem(LinkList L,ElemType *e)
+{ 
+	LinkList p=L->next;	//第一个结点给p
+	if(!p)	// 空表 
+		return 0;
+	else	// 非空表
+		*e=p->data;
+	return 1;
+}
+
+
+// 算法2.11 P30 
+// 逆位序(插在表头)输入n个元素的值，建立带表头结构的单链线性表L
+void CreateList(LinkList *L,int n)
+{
+	int i;
+	LinkList p;
+	
+	// 先建立一个带头结点的空单链表，相当于初始化单链表 
+	*L=(LinkList)malloc(sizeof(struct LNode));
+	(*L)->next=NULL; 
+	
+	printf("请输入%d个数据\n",n);
+	for(i=n;i>0;--i)
+	{
+		p=(LinkList)malloc(sizeof(struct LNode)); // 生成新结点 
+		scanf("%d",&p->data); // 输入元素值 
+		p->next=(*L)->next; // 插入到表头 
+		(*L)->next=p;
+	}
+}
+
+// 正位序(插在表尾)输入n个元素的值，建立带表头结构的单链线性表
+void CreateList2(LinkList *L,int n)
+{ 
+	int i;
+	LinkList p,q;
+	
+	// 先建立一个带头结点的空单链表，相当于初始化单链表 
+	*L=(LinkList)malloc(sizeof(struct LNode)); // 生成头结点 
+	(*L)->next=NULL;
+	
+	q=*L;
+	printf("请输入%d个数据\n",n);
+	for(i=1;i<=n;i++)
+	{
+		p=(LinkList)malloc(sizeof(struct LNode));
+		scanf("%d",&p->data);
+		q->next=p;
+		q=q->next;
+	}
+	p->next=NULL;
+}
+
+
+/*
+	
+	用单链表重写 算法2.2 供参考 
+	已知线性表La和Lb中的数据元素按值非递减排列。
+	归并La和Lb得到新的线性表Lc,Lc的数据元素也按值非递减排列
+
+void MergeList(LinkList La,LinkList Lb,LinkList *Lc)
+{
+	int i=1,j=1,k=0;
+	int La_len,Lb_len;
+	ElemType ai,bj;
+	InitList(Lc);
+	La_len=ListLength(La);
+	Lb_len=ListLength(Lb);
+	while(i<=La_len&&j<=Lb_len) // 表La和表Lb均非空
+	{
+		GetElem(La,i,&ai);
+		GetElem(Lb,j,&bj);
+		if(ai<=bj)
+		{
+			ListInsert(Lc,++k,ai);
+			++i;
+		}
+		else
+		{
+			ListInsert(Lc,++k,bj);
+			++j;
+		}
+	}
+	while(i<=La_len) // 表La非空且表Lb空
+	{
+		GetElem(La,i++,&ai);
+		ListInsert(Lc,++k,ai);
+	}
+	while(j<=Lb_len) // 表Lb非空且表La空
+	{
+		GetElem(Lb,j++,&bj);
+		ListInsert(Lc,++k,bj);
+	}
+}
+*/
+
+// 算法2.12 P31
+// 已知单链线性表La和Lb的元素按值非递减排列。 
+// 归并La和Lb得到新的单链线性表Lc，Lc的元素也按值非递减排列 
+void MergeList(LinkList La,LinkList *Lb,LinkList *Lc) 
+{
+	LinkList pa=La->next,pb=(*Lb)->next,pc;
+	*Lc=pc=La; // 用La的头结点作为Lc的头结点 
+	while(pa&&pb)
+	{
+		if(pa->data <= pb->data)
+		{
+			pc->next=pa;
+			*Lc=pa;
+			pa=pa->next;
+		}
+		else
+		{
+			pc->next=pb;
+			pc=pb;
+			pb=pb->next;
+		}
+	}
+	pc->next=pa ? pa : pb; // 插入剩余段 
+	free(*Lb); // 释放Lb的头结点 
+	Lb=NULL;
+}
+
+
+// 判断是否相等的函数，Union()用到
+int equal(ElemType c1,ElemType c2)
+{ 
+	if(c1==c2)
+		return 1;
+	else
+		return 0;
+}
+
+// 算法2.1
+// 将所有在线性表Lb中但不在La中的数据元素插入到La中 
+void Union(LinkList La,LinkList Lb)
+{ 
+	ElemType e;
+	int La_len,Lb_len;
+	int i;
+	
+	La_len=ListLength(La); // 求线性表的长度 
+	Lb_len=ListLength(Lb);
+	
+	for(i=1;i<=Lb_len;i++)
+	{
+		GetElem(Lb,i,&e); // 取Lb中第i个数据元素赋给e 
+		if(!LocateElem(La,e,equal)) // La中不存在和e相同的元素,则插入之 
+			ListInsert(&La,++La_len,e);
+	}
+}
+
+// 数据元素判定函数(相等为1,否则为0) 
+int comp(ElemType c1,ElemType c2)
+{
+	if(c1==c2)
+		return 1;
+	else
+		return 0;
+}
+
+void visit(ElemType c)
+{
+	printf("%d ",c);
+}
+
+int main()
+{
+	LinkList L, La, Lb, Lc;
+	ElemType e, e0, d;
+	int i, j, n, k;
+	
+	//初始化一个单链表
+	i=InitList(&L);
+	
+	//通过插入操作创建一个单链表
+	for(j=1;j<=5;j++)
+		i=ListInsert(&L,1,j);
+	
+	//调用visit函数，对单链表进行遍历
+	printf("在L的表头依次插入1～5后：L=");
+	ListTraverse(L,visit); // 依次对元素调用visit()，输出元素的值 
+	
+	//判断单链表是否为空
+	i=ListEmpty(L);
+	printf("L是否空：i=%d(1:是 0:否)\n",i);
+	
+	//清空单链表
+	i=ClearList(L);
+	printf("清空L后：L=");
+	ListTraverse(L,visit);
+	
+	//判断单链表是否为空
+	i=ListEmpty(L);
+	printf("L是否空：i=%d(1:是 0:否)\n",i);
+	
+	//再次通过插入操作创建一个单链表
+	for(j=1;j<=10;j++)
+		ListInsert(&L,j,j);
+	printf("在L的表尾依次插入1～10后：L=");
+	ListTraverse(L,visit);
+	
+	//取得单链表的第5个元素
+	GetElem(L,5,&e);
+	printf("第5个元素的值为：%d\n",e);
+	
+	//在单链表中找到和j满足comp函数关系的元素
+	for(j=0;j<=1;j++)
+	{
+		k=LocateElem(L,j,comp);
+		if(k)
+			printf("第%d个元素的值为%d\n",k,j);
+		else
+			printf("没有值为%d的元素\n",j);
+	}
+	
+	//找到某个元素的前驱
+	for(j=1;j<=2;j++) // 测试头两个数据 
+    {
+		GetElem(L,j,&e0); // 把第j个数据赋给e0 
+		i=PriorElem(L,e0,&e); // 求e0的前驱 
+		if(i==-1)
+			printf("元素%d无前驱\n",e0);
+		else
+			printf("元素%d的前驱为：%d\n",e0,e);
+	}
+	
+	//找到某个元素的后继
+	for(j=ListLength(L)-1;j<=ListLength(L);j++)// 测试最后两个数据 
+	{
+		GetElem(L,j,&e0); // 把第j个数据赋给e0 
+		i=NextElem(L,e0,&e); // 求e0的后继 
+		if(i==-1)
+			printf("元素%d无后继\n",e0);
+		else
+			printf("元素%d的后继为：%d\n",e0,e);
+	}
+	
+	//求单链表的表长
+	k=ListLength(L); // k为表长 
+	
+	//删除操作
+	for(j=k+1;j>=k;j--)
+	{
+		i=ListDelete(&L,j,&e); // 删除第j个数据 
+		if(i==0)
+			printf("删除第%d个数据失败\n",j);
+		else
+			printf("删除的元素为：%d\n",e);
+	}
+	printf("依次输出L的元素：");
+	ListTraverse(L,visit);
+
+	//销毁单链表
+	DestroyList(&L);
+	printf("销毁L后：L=%u\n\n",L);
+	
+	
+	printf("按非降序建立n个元素的线性表L,请输入元素个数n: ");
+	scanf("%d",&n);
+	CreatAscend(&L,n);
+	printf("依次输出L的元素：");
+	ListTraverse(L,visit);
+	
+	// 按非降序插入元素10
+	InsertAscend(L,10); 
+	printf("按非降序插入元素10后，线性表L为：");
+	ListTraverse(L,visit);
+	
+	// 在L的头部插入12
+	HeadInsert(L,12);
+	// 在L的尾部插入9 
+	EndInsert(L,9); 
+	printf("在L的头部插入12，尾部插入9后，线性表L为：");
+	ListTraverse(L,visit);
+	
+	i=GetFirstElem(L,&e); 
+	printf("第1个元素是: %d\n",e); 
+	
+	printf("请输入要删除的元素的值: ");
+	scanf("%d",&e);
+	i=DeleteElem(L,e);
+	if(i)
+		printf("成功删除%d!\n",e);
+	else
+		printf("不存在元素%d!\n",e);
+	printf("线性表L为：");
+	ListTraverse(L,visit);
+	
+	printf("请输入要取代的元素的序号 元素的新值: ");
+	scanf("%d%d",&n,&e);
+	ReplaceElem(L,n,e);
+	printf("线性表L为：");
+	ListTraverse(L,visit);
+	
+	DestroyList(&L);
+	
+	printf("销毁L后,按非升序重新建立n个元素的线性表L,请输入"
+		"元素个数n(>2): ");
+	scanf("%d",&n);
+	CreatDescend(&L,n);
+	printf("依次输出L的元素：");
+	ListTraverse(L,visit);
+	
+	// 按非升序插入元素10
+	InsertDescend(L,10);
+	printf("按非升序插入元素10后，线性表L为：");
+	ListTraverse(L,visit);
+	
+	printf("请输入要删除的元素的值: ");
+	scanf("%d",&e);
+	i=DeleteElem(L,e);
+	if(i)
+		printf("成功删除%d!\n",e);
+	else
+		printf("不存在元素%d!\n",e);
+	printf("线性表L为：");
+	ListTraverse(L,visit);
+	
+	DeleteFirst(L,&e);
+	DeleteTail(L,&d);
+	printf("删除表头元素%d和表尾元素%d后,线性表L为：",e,d);
+	ListTraverse(L,visit);
+	printf("\n");
+	
+	// 测试算法2.11 
+	n = 3;
+	CreateList2(&La,n);			// 正位序输入n个元素的值 
+	printf("正位创建后La=");	// 输出链表La的内容 
+	ListTraverse(La,visit);
+	
+	CreateList(&Lb,n);			// 逆位序输入n个元素的值 
+	printf("逆位创建后Lb=");	// 输出链表Lb的内容 
+	ListTraverse(Lb,visit);
+	DestroyList(&La);
+	DestroyList(&Lb);
+	
+	// 测试算法2.12
+	//初始化一个单链表La
+	i=InitList(&La);
+	//通过插入操作创建一个单链表
+	for(j=2;j<=10;j+=2)
+		i=ListInsert(&La,1,j);
+	printf("La="); // 输出链表La的内容 
+	ListTraverse(La,visit);
+	
+	//初始化一个单链表
+	i=InitList(&Lb);	
+	//通过插入操作创建一个单链表
+	for(j=1;j<=10;j+=2)
+		i=ListInsert(&Lb,1,j);
+	printf("Lb="); // 输出链表Lb的内容 
+	ListTraverse(Lb,visit);
+	// 按非递减顺序归并La和Lb,得到新表Lc
+	MergeList(La,&Lb,&Lc); 
+	
+	printf("合并La和Lb后，Lc = "); // 输出链表Lc的内容 
+	ListTraverse(Lc,visit);
+	
+	// 测试算法2.1
+	i=InitList(&La);
+	if(i==1) // 创建空表La成功 
+		for(j=1;j<=5;j++) // 在表La中插入5个元素 
+			i=ListInsert(&La,j,j);
+	printf("La= "); // 输出表La的内容 
+	ListTraverse(La,visit);
+	
+	InitList(&Lb); // 也可不判断是否创建成功 
+	for(j=1;j<=5;j++) // 在表Lb中插入5个元素 
+		i=ListInsert(&Lb,j,2*j);
+	printf("Lb= "); // 输出表Lb的内容 
+	ListTraverse(Lb,visit);
+	
+	Union(La,Lb);
+	printf("new La= "); // 输出新表La的内容 
+	ListTraverse(La,visit); 
+ 
+	system("pause");
+	return 0;
+}
+/*
+输出效果：
+
+在L的表头依次插入1～5后：L=5 4 3 2 1
+L是否空：i=0(1:是 0:否)
+清空L后：L=
+L是否空：i=1(1:是 0:否)
+在L的表尾依次插入1～10后：L=1 2 3 4 5 6 7 8 9 10
+第5个元素的值为：5
+没有值为0的元素
+第1个元素的值为1
+元素1无前驱
+元素2的前驱为：1
+元素9的后继为：10
+元素10无后继
+删除第11个数据失败
+删除的元素为：10
+依次输出L的元素：1 2 3 4 5 6 7 8 9
+销毁L后：L=0
+
+按非降序建立n个元素的线性表L,请输入元素个数n: 3
+请输入3个元素:（空格）
+1 3 2
+依次输出L的元素：1 2 3
+按非降序插入元素10后，线性表L为：1 2 3 10
+在L的头部插入12，尾部插入9后，线性表L为：12 1 2 3 10 9
+第1个元素是: 12
+请输入要删除的元素的值: 1
+成功删除1!
+线性表L为：12 2 3 10 9
+请输入要取代的元素的序号 元素的新值: 3 4
+线性表L为：12 2 4 10 9
+销毁L后,按非升序重新建立n个元素的线性表L,请输入元素个数n(>2): 3
+请输入3个元素:（空格）
+1 3 2
+依次输出L的元素：3 2 1
+按非升序插入元素10后，线性表L为：10 3 2 1
+请输入要删除的元素的值: 3
+成功删除3!
+线性表L为：10 2 1
+删除表头元素10和表尾元素1后,线性表L为：2
+
+请输入3个数据
+1 3 2
+正位创建后La=1 3 2
+请输入3个数据
+1 3 2
+逆位创建后Lb=2 3 1
+La=10 8 6 4 2
+Lb=9 7 5 3 1
+合并La和Lb后，Lc = 9 7 5 3 1 10 8 6 4 2
+La= 1 2 3 4 5
+Lb= 2 4 6 8 10
+new La= 1 2 3 4 5 6 8 10
+请按任意键继续. . .
+
+*/ 

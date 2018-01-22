@@ -1,0 +1,186 @@
+/*
+	数据结构C语言版 抽象数据类型三元组的表示和实现
+	p12
+	编译环境：Dev-C++ 4.9.9.2
+	日期：2011年2月9日
+*/
+#include <stdio.h>
+#include <malloc.h>
+#include <stdlib.h>
+
+
+// 以下2行可根据需要选用一个（且只能选用一个），而不需改变基本
+// 操作
+
+// 定义抽象数据类型ElemType在本程序中为整型
+typedef int ElemType;
+
+// 定义抽象数据类型ElemType在本程序中为双精度型
+// typedef double ElemType;
+
+typedef ElemType *Triplet; // 由InitTriplet分配三个元素存储空间
+
+// Triplet类型是ElemType类型的指针，存放ElemType类型的地址
+
+// 构造三元组T,依次置T的三个元素的初值为v1,v2和v3。
+int InitTriplet(Triplet *T,ElemType v1,ElemType v2,ElemType v3)
+{
+	// 动态分配三个元素的空间(ElemType *)这是强制类型转换
+	// malloc的参数是多少字节。
+	*T = (ElemType *)malloc(3 * sizeof(ElemType));	
+	if(!*T)
+		exit(0);
+	// 进行赋值，赋得是值，而不是地址。
+	(*T)[0] = v1;	// *的优先级比[]的低，所以要加括号
+	(*T)[1] = v2;
+	(*T)[2] = v3;
+	
+	return 1;
+ }
+
+
+// 销毁三元组T。
+int DestroyTriplet(Triplet *T)
+{
+	// 先将分配给T的空间释放，注意只要是分配了空间的，用完之后记
+	// 得一定要释放空间，不然就会引起内存泄漏。malloc与free搭配
+	// 使用。
+	free(*T);
+	// 然后置T为空
+	*T = NULL;
+
+	return 1;
+}
+// 用e返回T的第i元的值即将第i个值赋给e，因为要传递值到主调函数中，
+// 所以使用指针。
+int Get(Triplet T, int i, ElemType *e)
+{
+	if (i < 1 || i > 3)
+		return 0;
+	// 此时的T[i-1]表示内容而不是一个地址，因为它使用的是[]，就
+	// 相当于数组取值一样。T是数组头，[i-1]表示第i个元素
+	// 注意不能使用 e = &T[i-1];因为因为e的值只是在改变这个函数
+	// 内改变，不能把改变的结果传递到
+	// 主函数中，如果要传递的话，得使用指针。
+	*e = T[i-1];
+
+	return 1;
+}
+
+// 改变T的第i元的值为e。 
+int Put(Triplet *T, int i, ElemType e)
+{ 	
+	if ( i < 1 || i > 3)
+		return 0;
+	(*T)[i-1] = e;
+	
+	return 1;
+}
+
+// 如果T的三个元素按升序排列，返回1，否则返回0 
+int IsAscending(Triplet T)
+{
+	return ( T[0] <= T[1] && T[1] <= T[2] );
+}
+
+// 如果T的三个元素按降序排列，返回1，否则返回0 
+int IsDescending(Triplet T)
+{
+	return ( T[0] >= T[1] && T[1] >= T[2] );
+}
+
+// 用e返回T的三个元素中的最大值。
+int Max(Triplet T,ElemType *e)
+{
+	// 因为?:是自右向左运算的，所以先是1与2比，然后0与2比，
+	// 最后是0与1比
+	*e = (T[0] >= T[1]) ? ((T[0] >= T[2]) ? T[0] : T[2]) :
+	((T[1] >= T[2]) ? T[1] : T[2]);
+	
+	return 1;
+}
+
+// 用e返回T的三个元素中的最小值。
+int Min(Triplet T,ElemType *e)
+{
+	*e = T[0] <= T[1] ? T[0] <= T[2] ? T[0] : T[2] : 
+	T[1] <= T[2] ? T[1] : T[2];
+
+	return 1;
+}
+
+
+// 测试程序
+int main()
+{
+	Triplet T;
+	ElemType m;
+	int i;
+	
+	// 初始化操作。
+	// 当ElemType的类型变化时，要相应改变printf()的格式符。
+	i = InitTriplet( &T, 5, 7, 9);
+	if ( i )
+		printf( "调用初始化函数成功,T的三个值分别为：%d %d %d\n",
+			T[0], T[1], T[2]); 
+	else
+	{
+		printf("初始化失败！\n");
+		return 0;
+	}
+	
+	// 取得第i个位置的值
+	i = Get( T, 2, &m);
+	if(1 == i)
+		printf("T的第2个值为：%d\n", m);
+	else
+		printf("取值失败！\n");
+	
+	// 替换第i个位置的值
+	i = Put(&T, 2, 6);
+	if(1 == i)
+		printf("将T的第2个值改为6后，T的三个值为：%d %d %d\n",
+			T[0], T[1], T[2]);
+	else
+		printf("替换失败！\n");
+	
+	// 判断升序
+	i = IsAscending(T); 
+	printf("调用测试升序的函数后，i=%d(0:否 1:是)\n",i);
+	
+	// 判断降序
+	i = IsDescending(T);
+	printf("调用测试降序的函数后，i=%d(0:否 1:是)\n",i);
+	
+	// 找到最大值
+	i = Max(T,&m);
+	if(1 == i)
+		printf("T中的最大值为：%d\n", m);
+	
+	// 找到最小值
+	i = Min(T,&m);
+	if( 1 == i)
+		printf("T中的最小值为：%d\n", m);
+	
+	// 销毁三元组
+	DestroyTriplet(&T);
+	printf("销毁T后，T = %u(NULL)\n", T);
+	
+	system("pause");
+	return 0;
+}
+
+/*
+输出结果：
+
+调用初始化函数成功,T的三个值分别为：5 7 9
+的第2个值为：7
+将T的第2个值改为6后，T的三个值为：5 6 9
+调用测试升序的函数后，i=1(0:否 1:是)
+调用测试降序的函数后，i=0(0:否 1:是)
+中的最大值为：9
+中的最小值为：5
+销毁T后，T = 0(NULL)
+请按任意键继续. . .
+
+*/
